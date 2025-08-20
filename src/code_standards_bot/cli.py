@@ -1,0 +1,355 @@
+#!/usr/bin/env python3
+"""
+Command-line interface for the Code Standards Bot.
+
+This CLI makes the bot easy to use as a solution accelerator.
+"""
+
+import argparse
+import sys
+import os
+import json
+from pathlib import Path
+from typing import List, Optional
+import base64
+
+from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.workspace import ExportFormat
+
+from .main import CodeStandardsBot
+from .config.yaml_config import YamlConfigManager, create_default_config
+from .config.llm_providers import get_llm_provider, get_provider_examples
+from .utils.logging_utils import setup_logging
+from .utils.spark_utils import get_or_create_spark_session
+
+
+def create_config_command(args):
+    """Create a new configuration file."""
+    config_manager = YamlConfigManager()
+    
+    if args.non_interactive:
+        # Use defaults without prompting
+        config = create_default_config()
+    else:
+        if args.template:
+            # Create from template
+            if args.template == "default":
+                config = create_default_config()
+            else:
+                print(f"Unknown template: {args.template}")
+                sys.exit(1)
+        else:
+            # Create minimal config
+            config = create_default_config()
+    
+    output_path = args.output or "validation_rules.yaml"
+    config_manager.config = config
+    config_manager.save_config(output_path)
+    
+    print(f"Configuration file created: {output_path}")
+    print("Edit this file to customize your validation rules.")
+
+
+def validate_command(args):
+    """Validate notebook(s) against standards."""
+    # Setup logging
+    setup_logging(log_level=args.log_level.upper())
+    
+    # Load configuration
+    config_manager = YamlConfigManager(args.config)
+    
+    try:
+        validation_config = config_manager.load_config()
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        print("Create a configuration file using: code-standards-bot create-config")
+        sys.exit(1)
+    
+    # Get LLM provider configuration
+    try:
+        llm_config = get_llm_provider()
+    except ValueError as e:
+        print(f"Error: {e}")
+        print("Set the required environment variables or use --help for examples")
+        sys.exit(1)
+    
+    # Initialize the bot
+    print("Initializing Code Standards Bot...")
+    bot = CodeStandardsBot(
+        llm_endpoint_url=llm_config.endpoint_url,
+        llm_token=llm_config.api_key,
+        config_manager=config_manager
+    )
+    
+    # Initialize WorkspaceClient
+    w = WorkspaceClient()
+    
+    # Determine notebooks to validate
+    notebooks = []
+    
+    if args.notebook:
+        export = w.workspace.export(path=args.notebook, format=ExportFormat.JUPYTER)
+        notebooks.append({'path': args.notebook, 'content': base64.b64decode(export.content).decode('utf-8')})
+    elif args.notebooks_file:
+        with open(args.notebooks_file, 'r') as f:
+            paths = [line.strip() for line in f if line.strip()]
+        for path in paths:
+            export = w.workspace.export(path=path, format=ExportFormat.JUPYTER)
+            notebooks.append({'path': path, 'content': base64.b64decode(export.content).decode('utf-8')})
+    elif args.notebooks:
+        for path in args.notebooks:
+            export = w.workspace.export(path=path, format=ExportFormat.JUPYTER)
+            notebooks.append({'path': path, 'content': base64.b64decode(export.content).decode('utf-8')})
+    else:
+        print("Error: No notebooks specified for validation")
+        sys.exit(1)
+    
+    # Validate notebooks
+    all_results = []
+    for notebook in notebooks:
+        print(f"\nValidating: {notebook['path']}")
+        try:
+            # Assuming validate_notebook can be modified to take content; if not, adjust bot
+            results = bot.validate_notebook(notebook['path'], content=notebook['content'])  # May need bot update
+            all_results.extend(results)
+            
+            # Show summary for this notebook
+            summary = bot.get_validation_summary(results)
+            print(f"  Results: {summary['passed_results']} passed, "
+                  f"{summary['failed_results']} failed, "
+                  f"{summary['pending_results']} pending")
+            
+        except Exception as e:
+            print(f"  Error validating {notebook['path']}: {e}")
+            continue
+    
+    # Overall summary
+    if all_results:
+        overall_summary = bot.get_validation_summary(all_results)
+        print(f"\n=== Overall Summary ===")
+        print(f"Total results: {overall_summary['total_results']}")
+        print(f"Passed: {overall_summary['passed_results']}")
+        print(f"Failed: {overall_summary['failed_results']}")
+        print(f"Pending: {overall_summary['pending_results']}")
+        print(f"Pass rate: {overall_summary['pass_rate']:.2%}")
+        
+        # Save results
+        if args.output:
+            save_results(all_results, args.output, args.format)
+        
+        # Save to Spark/Delta if requested
+        if args.save_to_table:
+            save_to_spark_table(bot, all_results, args.save_to_table)
+        
+        # Exit with error code if any failures
+        if overall_summary['failed_results'] > 0 and args.fail_on_errors:
+            sys.exit(1)
+    else:
+        print("No results to display")
+        sys.exit(1)
+
+
+def save_results(results, output_path: str, format: str):
+    """Save validation results to file."""
+    output_path_obj = Path(output_path)
+    
+    if format == "json":
+        with open(output_path_obj, 'w') as f:
+            result_dicts = [r.to_dict() for r in results]
+            json.dump(result_dicts, f, indent=2, default=str)
+    elif format == "csv":
+        import csv
+        with open(output_path_obj, 'w', newline='') as f:
+            if results:
+                writer = csv.DictWriter(f, fieldnames=results[0].to_dict().keys())
+                writer.writeheader()
+                for result in results:
+                    writer.writerow(result.to_dict())
+    elif format == "html":
+        generate_html_report(results, output_path_obj)
+    
+    print(f"Results saved to: {output_path}")
+
+
+def generate_html_report(results, output_path: Path):
+    """Generate an HTML report."""
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Code Standards Bot Report</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .summary { background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+            .passed { color: green; }
+            .failed { color: red; }
+            .pending { color: orange; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+        </style>
+    </head>
+    <body>
+        <h1>Code Standards Validation Report</h1>
+        <div class="summary">
+            <h2>Summary</h2>
+            <p>Total validations: {total}</p>
+            <p class="passed">Passed: {passed}</p>
+            <p class="failed">Failed: {failed}</p>
+            <p class="pending">Pending: {pending}</p>
+        </div>
+        <h2>Detailed Results</h2>
+        <table>
+            <tr>
+                <th>Notebook</th>
+                <th>Rule</th>
+                <th>Status</th>
+                <th>Details</th>
+            </tr>
+            {rows}
+        </table>
+    </body>
+    </html>
+    """
+    
+    # Calculate summary
+    total = len(results)
+    passed = sum(1 for r in results if r.status.value == "Passed")
+    failed = sum(1 for r in results if r.status.value == "Failed")
+    pending = sum(1 for r in results if r.status.value == "Pending")
+    
+    # Generate table rows
+    rows = []
+    for result in results:
+        status_class = result.status.value.lower()
+        row = f"""
+        <tr>
+            <td>{result.notebook_path}</td>
+            <td>{result.rule}</td>
+            <td class="{status_class}">{result.status.value}</td>
+            <td>{result.details}</td>
+        </tr>
+        """
+        rows.append(row)
+    
+    html = html_content.format(
+        total=total,
+        passed=passed,
+        failed=failed,
+        pending=pending,
+        rows=''.join(rows)
+    )
+    
+    with open(output_path, 'w') as f:
+        f.write(html)
+
+
+def save_to_spark_table(bot, results, table_name: str):
+    """Save results to Spark/Delta table."""
+    try:
+        spark = get_or_create_spark_session()
+        if spark:
+            df = bot.create_spark_dataframe(results, spark)
+            df.write.format("delta").mode("overwrite").saveAsTable(table_name)
+            print(f"Results saved to Delta table: {table_name}")
+        else:
+            print("Warning: Spark not available, skipping table save")
+    except Exception as e:
+        print(f"Error saving to table: {e}")
+
+
+def show_examples_command(args):
+    """Show configuration examples."""
+    if args.type == "llm":
+        examples = get_provider_examples()
+        print("LLM Provider Configuration Examples:")
+        print("=====================================")
+        for provider, config in examples.items():
+            print(f"\n{provider.upper()}:")
+            print(f"Environment variables:")
+            print(f"  export LLM_PROVIDER_TYPE={provider}")
+            print(f"  export LLM_API_KEY={config['api_key']}")
+            if 'endpoint_url' in config:
+                print(f"  export LLM_ENDPOINT_URL={config['endpoint_url']}")
+            print(f"  export LLM_MODEL_NAME={config['model_name']}")
+    elif args.type == "config":
+        print("Example validation_rules.yaml configuration:")
+        print("==========================================")
+        print("Use 'code-standards-bot create-config' to generate a full example")
+    else:
+        print("Available example types: llm, config")
+
+
+def main():
+    """Main CLI entry point."""
+    parser = argparse.ArgumentParser(
+        description="Code Standards Bot - Validate Databricks notebooks against code standards",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Create a configuration file
+  code-standards-bot create-config --output my_rules.yaml
+
+  # Validate a single notebook
+  code-standards-bot validate --notebook "/path/to/notebook" --config my_rules.yaml
+
+  # Validate multiple notebooks
+  code-standards-bot validate --notebooks "/path/1" "/path/2" --output results.json
+
+  # Show LLM provider examples
+  code-standards-bot examples --type llm
+
+Environment variables:
+  LLM_PROVIDER_TYPE     Type of LLM provider (openai, azure_openai, anthropic, databricks)
+  LLM_API_KEY          API key for the LLM service
+  LLM_ENDPOINT_URL     LLM endpoint URL (provider-specific)
+  LLM_MODEL_NAME       Model name to use
+        """
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Create config command
+    config_parser = subparsers.add_parser('create-config', help='Create a new configuration file')
+    config_parser.add_argument('--output', '-o', help='Output file path (default: validation_rules.yaml)')
+    config_parser.add_argument('--template', help='Template to use (default)')
+    config_parser.add_argument('--non-interactive', action='store_true', help='Run without interactive prompts')
+    config_parser.set_defaults(func=create_config_command)
+    
+    # Validate command
+    validate_parser = subparsers.add_parser('validate', help='Validate notebooks')
+    validate_parser.add_argument('--notebook', help='Single notebook path to validate')
+    validate_parser.add_argument('--notebooks', nargs='+', help='Multiple notebook paths to validate')
+    validate_parser.add_argument('--notebooks-file', help='File containing list of notebook paths')
+    validate_parser.add_argument('--config', '-c', default='validation_rules.yaml', 
+                                help='Path to configuration file (default: validation_rules.yaml)')
+    validate_parser.add_argument('--output', '-o', help='Output file for results')
+    validate_parser.add_argument('--format', choices=['json', 'csv', 'html'], default='json',
+                                help='Output format (default: json)')
+    validate_parser.add_argument('--save-to-table', help='Save results to Spark/Delta table')
+    validate_parser.add_argument('--fail-on-errors', action='store_true',
+                                help='Exit with error code if any validations fail')
+    validate_parser.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], 
+                                default='INFO', help='Logging level (default: INFO)')
+    validate_parser.add_argument('--non-interactive', action='store_true', help='Run without interactive prompts')
+    validate_parser.set_defaults(func=validate_command)
+    
+    # Examples command
+    examples_parser = subparsers.add_parser('examples', help='Show configuration examples')
+    examples_parser.add_argument('--type', choices=['llm', 'config'], required=True,
+                                help='Type of examples to show')
+    examples_parser.set_defaults(func=show_examples_command)
+    
+    # Parse arguments
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+    
+    # Execute command
+    args.func(args)
+
+
+if __name__ == '__main__':
+    main() 

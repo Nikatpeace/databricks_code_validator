@@ -1,0 +1,108 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+*/*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.env.local
+.env.docker
+.env.development
+.env.production
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.vs/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Results and outputs
+results/
+output/
+reports/
+*.html
+*.json
+*.csv
+validation_results.yaml
+validation_*.yaml
+
+# Logs
+logs/
+*.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Documentation
+docs/_build/
+
+# Database
+*.db
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Databricks specific
+.databricks/
+databricks.yml
+
+# Docker
+.dockerignore
+
+# Local configuration overrides
+local_config.yaml
+custom_rules.yaml
