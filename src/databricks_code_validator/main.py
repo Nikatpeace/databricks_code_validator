@@ -1,4 +1,4 @@
-"""Main CodeStandardsBot class."""
+"""Main DatabricksCodeValidator class."""
 
 import logging
 from datetime import datetime
@@ -17,7 +17,7 @@ from .validators.governance_validator import GovernanceValidator
 logger = logging.getLogger(__name__)
 
 
-class CodeStandardsBot:
+class DatabricksCodeValidator:
     """Main class for validating Databricks notebooks against code standards."""
     
     def __init__(
@@ -28,7 +28,7 @@ class CodeStandardsBot:
         config_manager=None
     ):
         """
-        Initialize the CodeStandardsBot.
+        Initialize the DatabricksCodeValidator.
         
         Args:
             llm_endpoint_url: URL of the LLM endpoint

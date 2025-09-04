@@ -1,4 +1,4 @@
-"""Spark utilities for the code standards bot."""
+"""Spark utilities for the Databricks code validator."""
 
 from typing import Optional, TYPE_CHECKING
 
@@ -12,7 +12,7 @@ else:
 
 
 def create_spark_session(
-    app_name: str = "CodeStandardsBot",
+    app_name: str = "DatabricksCodeValidator",
     config: Optional[dict] = None
 ) -> Optional[SparkSession]:
     """
@@ -38,7 +38,7 @@ def create_spark_session(
 
 
 def get_or_create_spark_session(
-    app_name: str = "CodeStandardsBot"
+    app_name: str = "DatabricksCodeValidator"
 ) -> Optional[SparkSession]:
     """
     Get existing Spark session or create a new one.

@@ -1,4 +1,4 @@
-# Code Standards Bot - Validation Rules Configuration
+# Databricks Code Validator - Validation Rules Configuration
 # This file allows you to customize which validation rules to run and their parameters
 
 # Global Configuration

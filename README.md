@@ -1,4 +1,4 @@
-# Code Standards Bot - Solution Accelerator
+# Databricks Code Validator - Solution Accelerator
 
 An AI-powered validation tool for Databricks notebooks that enforces code standards and best practices. This solution accelerator provides a comprehensive, configurable system for validating notebooks against customizable rules.
 
@@ -88,7 +88,7 @@ pip install -e .
 #### Manual Configuration
 Create a `validation_rules.yaml` file:
 ```bash
-code-standards-bot create-config --output validation_rules.yaml
+databricks-code-validator create-config --output validation_rules.yaml
 ```
 
 Set environment variables:
@@ -109,13 +109,13 @@ This notebook installs dependencies, configures the bot, and validates a sample 
 
 #### Single Notebook
 ```bash
-code-standards-bot validate --notebook "/path/to/notebook"
+databricks-code-validator validate --notebook "/path/to/notebook"
 ```
 
 
 #### Multiple Notebooks
 ```bash
-code-standards-bot validate --notebooks "/path/1" "/path/2" --output results.json
+databricks-code-validator validate --notebooks "/path/1" "/path/2" --output results.json
 ```
 
 #### Batch Validation from File
@@ -124,7 +124,7 @@ code-standards-bot validate --notebooks "/path/1" "/path/2" --output results.jso
 echo "/path/to/notebook1" > notebooks.txt
 echo "/path/to/notebook2" >> notebooks.txt
 
-code-standards-bot validate --notebooks-file notebooks.txt
+databricks-code-validator validate --notebooks-file notebooks.txt
 ```
 
 ## 🔧 Configuration
@@ -219,22 +219,22 @@ custom_validation:
 
 ### JSON Output
 ```bash
-code-standards-bot validate --notebook "/path/to/notebook" --output results.json --format json
+databricks-code-validator validate --notebook "/path/to/notebook" --output results.json --format json
 ```
 
 ### CSV Output
 ```bash
-code-standards-bot validate --notebook "/path/to/notebook" --output results.csv --format csv
+databricks-code-validator validate --notebook "/path/to/notebook" --output results.csv --format csv
 ```
 
 ### HTML Report
 ```bash
-code-standards-bot validate --notebook "/path/to/notebook" --output report.html --format html
+databricks-code-validator validate --notebook "/path/to/notebook" --output report.html --format html
 ```
 
 ### Spark/Delta Table
 ```bash
-code-standards-bot validate --notebook "/path/to/notebook" --save-to-table validation_results
+databricks-code-validator validate --notebook "/path/to/notebook" --save-to-table validation_results
 ```
 
 ## 🔌 Integration Examples
@@ -263,7 +263,7 @@ jobs:
           
       - name: Run validation
         run: |
-          code-standards-bot validate --notebooks-file notebooks.txt --fail-on-errors
+          databricks-code-validator validate --notebooks-file notebooks.txt --fail-on-errors
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_PROVIDER_TYPE: openai
@@ -272,14 +272,14 @@ jobs:
 ### Databricks Job Integration
 ```python
 # Databricks notebook cell
-%pip install code-standards-bot
+%pip install databricks-code-validator
 
 # Configure and run validation
-from code_standards_bot.main import CodeStandardsBot
-from code_standards_bot.config.yaml_config import YamlConfigManager
+from databricks_code_validator.main import DatabricksCodeValidator
+from databricks_code_validator.config.yaml_config import YamlConfigManager
 
 config_manager = YamlConfigManager("/Workspace/Repos/your-username/Code_standards_validation_bot/validation_rules.yaml")
-bot = CodeStandardsBot(
+bot = DatabricksCodeValidator(
     llm_endpoint_url=dbutils.secrets.get("llm", "endpoint_url"),
     llm_token=dbutils.secrets.get("llm", "api_key"),
     config_manager=config_manager
@@ -296,8 +296,8 @@ df.write.format("delta").mode("overwrite").saveAsTable("validation_results")
 You can create custom validation rules by extending the base validator:
 
 ```python
-from code_standards_bot.validators.base_validator import BaseValidator
-from code_standards_bot.models.validation_result import ValidationResult
+from databricks_code_validator.validators.base_validator import BaseValidator
+from databricks_code_validator.models.validation_result import ValidationResult
 
 class MyCustomValidator(BaseValidator):
     def __init__(self, config_manager=None):
@@ -319,7 +319,7 @@ class MyCustomValidator(BaseValidator):
 Add support for new LLM providers:
 
 ```python
-from code_standards_bot.config.llm_providers import LLMProviderConfig, LLMProviderType
+from databricks_code_validator.config.llm_providers import LLMProviderConfig, LLMProviderType
 
 def create_my_provider_config(api_key: str, endpoint: str) -> LLMProviderConfig:
     return LLMProviderConfig(
@@ -334,13 +334,13 @@ def create_my_provider_config(api_key: str, endpoint: str) -> LLMProviderConfig:
 
 ### Generate Summary Reports
 ```bash
-code-standards-bot validate \
+databricks-code-validator validate \
   --notebooks-file notebooks.txt \
   --output results.json \
   --format json
 
 # Generate HTML summary
-code-standards-bot validate \
+databricks-code-validator validate \
   --notebooks-file notebooks.txt \
   --output report.html \
   --format html
@@ -367,13 +367,13 @@ def send_to_monitoring(results):
 1. **LLM Connection Issues**
    ```bash
    # Test LLM connection
-   code-standards-bot examples --type llm
+   databricks-code-validator examples --type llm
    ```
 
 2. **Configuration Errors**
    ```bash
    # Validate configuration
-   code-standards-bot validate --config validation_rules.yaml --notebook "/path/to/test"
+   databricks-code-validator validate --config validation_rules.yaml --notebook "/path/to/test"
    ```
 
 3. **Memory Issues with Large Notebooks**
@@ -385,7 +385,7 @@ def send_to_monitoring(results):
 
 ### Debug Mode
 ```bash
-code-standards-bot validate --notebook "/path/to/notebook" --log-level DEBUG
+databricks-code-validator validate --notebook "/path/to/notebook" --log-level DEBUG
 ```
 
 ## 🤝 Contributing
@@ -407,7 +407,7 @@ flake8 src/
 ```
 
 ### Adding New Validators
-1. Create a new validator in `src/code_standards_bot/validators/`
+1. Create a new validator in `src/databricks_code_validator/validators/`
 2. Extend `BaseValidator`
 3. Add configuration options to `validation_rules.yaml`
 4. Add tests

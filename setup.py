@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Setup script for Code Standards Bot."""
+"""Setup script for Databricks Code Validator."""
 
 from setuptools import setup, find_packages
 
@@ -12,14 +12,14 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
-    name="code-standards-bot",
+    name="databricks-code-validator",
     version="1.0.0",
     author="Your Organization",
     author_email="your-email@company.com",
-    description="AI-powered validation of Databricks notebooks against code standards",
+    description="AI-powered validation tool for Databricks notebooks against code standards and best practices",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/your-org/code-standards-bot",
+    url="https://github.com/your-org/databricks-code-validator",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     classifiers=[
@@ -37,12 +37,12 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "code-standards-bot=code_standards_bot.cli:main",
+            "databricks-code-validator=databricks_code_validator.cli:main",
         ],
     },
     include_package_data=True,
     package_data={
-        "code_standards_bot": ["config/*.yaml"],
+        "databricks_code_validator": ["config/*.yaml"],
     },
     keywords="databricks, code-quality, ai, validation, standards, notebooks",
 )

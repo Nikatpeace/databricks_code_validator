@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Command-line interface for the Code Standards Bot.
+Command-line interface for the Databricks Code Validator.
 
 This CLI makes the bot easy to use as a solution accelerator.
 """
@@ -16,7 +16,7 @@ import base64
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.workspace import ExportFormat
 
-from .main import CodeStandardsBot
+from .main import DatabricksCodeValidator
 from .config.yaml_config import YamlConfigManager, create_default_config
 from .config.llm_providers import get_llm_provider, get_provider_examples
 from .utils.logging_utils import setup_logging
@@ -62,7 +62,7 @@ def validate_command(args):
         validation_config = config_manager.load_config()
     except FileNotFoundError as e:
         print(f"Error: {e}")
-        print("Create a configuration file using: code-standards-bot create-config")
+        print("Create a configuration file using: databricks-code-validator create-config")
         sys.exit(1)
     
     # Get LLM provider configuration
@@ -74,8 +74,8 @@ def validate_command(args):
         sys.exit(1)
     
     # Initialize the bot
-    print("Initializing Code Standards Bot...")
-    bot = CodeStandardsBot(
+    print("Initializing Databricks Code Validator...")
+    bot = DatabricksCodeValidator(
         llm_endpoint_url=llm_config.endpoint_url,
         llm_token=llm_config.api_key,
         config_manager=config_manager
@@ -177,7 +177,7 @@ def generate_html_report(results, output_path: Path):
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Code Standards Bot Report</title>
+        <title>Databricks Code Validator Report</title>
         <style>
             body { font-family: Arial, sans-serif; margin: 20px; }
             .summary { background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
@@ -190,7 +190,7 @@ def generate_html_report(results, output_path: Path):
         </style>
     </head>
     <body>
-        <h1>Code Standards Validation Report</h1>
+        <h1>Databricks Code Validation Report</h1>
         <div class="summary">
             <h2>Summary</h2>
             <p>Total validations: {total}</p>
@@ -275,7 +275,7 @@ def show_examples_command(args):
     elif args.type == "config":
         print("Example validation_rules.yaml configuration:")
         print("==========================================")
-        print("Use 'code-standards-bot create-config' to generate a full example")
+        print("Use 'databricks-code-validator create-config' to generate a full example")
     else:
         print("Available example types: llm, config")
 
@@ -283,21 +283,21 @@ def show_examples_command(args):
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Code Standards Bot - Validate Databricks notebooks against code standards",
+        description="Databricks Code Validator - AI-powered validation of Databricks notebooks against code standards and best practices",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Create a configuration file
-  code-standards-bot create-config --output my_rules.yaml
+  databricks-code-validator create-config --output my_rules.yaml
 
   # Validate a single notebook
-  code-standards-bot validate --notebook "/path/to/notebook" --config my_rules.yaml
+  databricks-code-validator validate --notebook "/path/to/notebook" --config my_rules.yaml
 
   # Validate multiple notebooks
-  code-standards-bot validate --notebooks "/path/1" "/path/2" --output results.json
+  databricks-code-validator validate --notebooks "/path/1" "/path/2" --output results.json
 
   # Show LLM provider examples
-  code-standards-bot examples --type llm
+  databricks-code-validator examples --type llm
 
 Environment variables:
   LLM_PROVIDER_TYPE     Type of LLM provider (openai, azure_openai, anthropic, databricks)
