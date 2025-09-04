@@ -74,32 +74,51 @@ class GovernanceValidator(BaseValidator):
             )
     
     def _validate_documentation_and_comments(self, notebook: NotebookMetadata) -> ValidationResult:
-        """Validate documentation and comments."""
+        """Validate documentation and comments using simple pattern matching."""
         all_code = notebook.get_all_code()
         
         try:
-            llm_prompt = self.config_manager.get_rule_parameters("governance_validation", "documentation_and_comments").get(
-                "llm_prompt", "Evaluate the quality of comments and documentation. Return 'True (explanation)' if sufficient (min 20% comment lines), 'False (explanation)' otherwise."
-            )
-            is_documented, details = self.llm_service.call_llm(all_code, llm_prompt)
-            match = re.search(r'(True|False)\s*\((.*)\)', details.strip())
-            if match and match.group(1).lower() == "true":
+            # Get comment patterns from config
+            params = self.config_manager.get_rule_parameters("governance_validation", "documentation_and_comments")
+            comment_patterns = params.get("check_patterns", ["#", "//", "/*", '"""'])
+            min_ratio = params.get("min_comment_ratio", 0.1)
+            
+            # Count total lines and comment lines
+            lines = all_code.split('\n')
+            total_lines = len([line for line in lines if line.strip()])  # Non-empty lines
+            comment_lines = 0
+            
+            for line in lines:
+                line_stripped = line.strip()
+                if any(line_stripped.startswith(pattern) for pattern in comment_patterns):
+                    comment_lines += 1
+            
+            if total_lines == 0:
                 return self.create_passed_result(
                     "Documentation and Comments",
-                    match.group(2),
+                    "No code to validate",
+                    notebook.path
+                )
+            
+            comment_ratio = comment_lines / total_lines
+            
+            if comment_ratio >= min_ratio:
+                return self.create_passed_result(
+                    "Documentation and Comments",
+                    f"Sufficient comments found ({comment_ratio:.1%} of lines)",
                     notebook.path
                 )
             else:
                 return self.create_failed_result(
                     "Documentation and Comments",
-                    match.group(2) if match else "Insufficient comments and documentation; add for maintainability",
+                    f"Insufficient comments ({comment_ratio:.1%} of lines, minimum {min_ratio:.1%} required)",
                     notebook.path
                 )
         except Exception as e:
             logger.error(f"Error validating documentation: {e}")
             return self.create_failed_result(
                 "Documentation and Comments",
-                "Insufficient comments and documentation; add for maintainability",
+                "Error checking comments; ensure code has adequate documentation",
                 notebook.path
             )
     

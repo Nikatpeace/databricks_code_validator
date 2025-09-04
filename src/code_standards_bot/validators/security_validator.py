@@ -46,11 +46,6 @@ class SecurityValidator(BaseValidator):
             if self.config_manager.is_rule_enabled("security_validation", "sql_injection_risks"):
                 results.append(self._validate_sql_injection_risks(notebook))
             
-            if self.config_manager.is_rule_enabled("security_validation", "cluster_isolation"):
-                results.append(self._validate_cluster_isolation(notebook))
-            
-            if self.config_manager.is_rule_enabled("security_validation", "encryption_checks"):
-                results.append(self._validate_encryption_checks(notebook))
         
         return results
     
@@ -150,40 +145,3 @@ class SecurityValidator(BaseValidator):
                 notebook.path
             )
     
-    def _validate_cluster_isolation(self, notebook: NotebookMetadata) -> ValidationResult:
-        """Validate cluster isolation."""
-        all_code = notebook.get_all_code()
-        
-        has_shared = bool(re.search(r'cluster.*shared', all_code, re.IGNORECASE))
-        
-        if has_shared:
-            return self.create_failed_result(
-                "Cluster Isolation",
-                "Shared cluster reference detected; use single-user mode for isolation",
-                notebook.path
-            )
-        else:
-            return self.create_passed_result(
-                "Cluster Isolation",
-                "No shared cluster references found",
-                notebook.path
-            )
-    
-    def _validate_encryption_checks(self, notebook: NotebookMetadata) -> ValidationResult:
-        """Validate data encryption."""
-        all_code = notebook.get_all_code()
-        
-        has_encryption = bool(re.search(r'fs\.s3a\.server-side-encryption|ENCRYPTED', all_code, re.IGNORECASE))
-        
-        if has_encryption:
-            return self.create_passed_result(
-                "Encryption Checks",
-                "Encryption flags found for storage",
-                notebook.path
-            )
-        else:
-            return self.create_failed_result(
-                "Encryption Checks",
-                "No encryption flags found; ensure data is encrypted",
-                notebook.path
-            )

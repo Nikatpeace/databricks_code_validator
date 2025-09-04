@@ -198,4 +198,57 @@ class LLMService:
             return is_restartable, content
         except Exception as e:
             logger.error(f"Failed to check restartability: {e}")
-            return False, f"LLM error: {str(e)}" 
+            return False, f"LLM error: {str(e)}"
+    
+    def analyze_join_efficiency(self, code: str) -> tuple[bool, str]:
+        """
+        Analyze SQL joins for efficiency issues.
+        
+        Args:
+            code: The code containing SQL joins to analyze
+            
+        Returns:
+            Tuple of (is_efficient, explanation)
+        """
+        prompt = (
+            "Analyze the following SQL code for join efficiency issues such as "
+            "data skew, cartesian products, or missing broadcast hints. "
+            "Return 'True' if joins are efficient, 'False' if there are issues, "
+            "with a detailed explanation."
+        )
+        
+        try:
+            result = self.call_llm(code, prompt)
+            content = result["choices"][0]["message"]["content"]
+            is_efficient = "True" in content
+            return is_efficient, content
+        except Exception as e:
+            logger.error(f"Failed to analyze join efficiency: {e}")
+            return False, f"LLM error: {str(e)}"
+    
+    def check_sql_injection(self, code: str) -> tuple[bool, str]:
+        """
+        Check for SQL injection vulnerabilities in dynamic SQL.
+        
+        Args:
+            code: The code to analyze for SQL injection risks
+            
+        Returns:
+            Tuple of (is_secure, explanation)
+        """
+        prompt = (
+            "Analyze the following code for SQL injection vulnerabilities. "
+            "Look for dynamic SQL construction using string interpolation, "
+            "format strings, or concatenation. Return 'True' if the code is "
+            "secure from SQL injection, 'False' if vulnerabilities exist, "
+            "with a detailed explanation and suggestions."
+        )
+        
+        try:
+            result = self.call_llm(code, prompt)
+            content = result["choices"][0]["message"]["content"]
+            is_secure = "True" in content
+            return is_secure, content
+        except Exception as e:
+            logger.error(f"Failed to check SQL injection: {e}")
+            return False, f"LLM error: {str(e)}"

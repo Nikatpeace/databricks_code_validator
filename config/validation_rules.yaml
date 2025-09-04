@@ -1,0 +1,265 @@
+# Code Standards Bot - Validation Rules Configuration
+# This file allows you to customize which validation rules to run and their parameters
+
+# Global Configuration
+global:
+  enabled: true
+  batch_size: 5
+  max_retries: 3
+  timeout_seconds: 30
+
+# Code Quality Validation Rules
+# This section includes rules focused on code style, structure, naming conventions, and basic best practices
+code_quality_validation:
+  enabled: true
+  rules:
+    valid_languages_only:
+      enabled: true
+      description: "Only approved languages should be used"
+      severity: "error"
+      parameters:
+        allowed_languages: ["sql", "python", "scala", "r"]
+        strict_mode: false  # If true, fails on any other language
+
+    header_section_exists:
+      enabled: true
+      description: "Notebook should have a header section"
+      severity: "warning"
+      parameters:
+        header_keywords: ["header", "title", "description", "purpose"]
+        check_first_n_cells: 3
+        
+    descriptive_cell_titles:
+      enabled: true
+      description: "Code cells should have descriptive titles"
+      severity: "warning"
+      parameters:
+        require_titles: true
+        min_title_length: 5
+        use_llm_analysis: true
+
+
+    notebook_idempotency:
+      enabled: true  # Enabled for testing
+      description: "Notebook should be idempotent and restartable"
+      severity: "warning"
+      parameters:
+        use_llm_analysis: true
+        check_hard_coded_paths: true
+        
+    relative_notebook_references:
+      enabled: true
+      description: "Notebook calls should use relative paths"
+      severity: "error"
+      parameters:
+        allow_absolute_paths: false
+        base_path_patterns: ["/Shared/", "/Users/"]
+        
+
+    string_data_types:
+      enabled: true
+      description: "Use STRING instead of VARCHAR/CHAR"
+      severity: "error"
+      parameters:
+        preferred_type: "STRING"
+        disallowed_types: ["VARCHAR", "CHAR", "TEXT"]
+        
+    
+        
+    column_nullability:
+      enabled: true
+      description: "Columns should be NOT NULL unless explicitly optional"
+      severity: "warning"
+      parameters:
+        default_not_null: true
+        nullable_types: ["STRING"]
+        require_explicit_null: false
+
+# Performance Validation Rules
+# This section includes rules focused on code efficiency, optimization, and resource usage
+performance_validation:
+  enabled: true
+  rules:
+    avoid_select_star:
+      enabled: true
+      description: "Avoid using SELECT * in queries to reduce data scanning"
+      severity: "error"
+      parameters:
+        disallow_select_star: true
+        exceptions: ["SELECT * FROM (SELECT"]  # Allow in subqueries
+        use_llm_analysis: false
+        regex_pattern: "SELECT\\s+\\*"
+
+    partitioning_and_clustering:
+      enabled: true
+      description: "Tables should use partitioning or clustering for performance"
+      severity: "warning"
+      parameters:
+        require_partition_by: true
+        suggested_columns: ["date", "timestamp", "id"]
+        use_llm_analysis: true
+        llm_prompt: "Suggest optimal partitioning/clustering columns based on schema"
+
+    efficient_joins:
+      enabled: true
+      description: "Joins should be optimized to avoid skew or Cartesian products"
+      severity: "error"
+      parameters:
+        check_for_broadcast_hints: true
+        use_llm_analysis: true
+        llm_prompt: "Analyze this JOIN for potential inefficiencies like data skew"
+
+    python_vectorization:
+      enabled: true
+      description: "Use vectorized operations in Python instead of loops"
+      severity: "warning"
+      parameters:
+        disallow_loops_on_dataframes: true
+        regex_pattern: "for.*iterrows\\(\\)"
+        suggested_alternatives: ["Spark APIs", "UDFs"]
+
+    cache_usage:
+      enabled: true
+      description: "Frequently reused DataFrames should be cached"
+      severity: "warning"
+      parameters:
+        min_reuse_threshold: 2  # Flag if same read is used more than this without cache
+        regex_pattern: "\\.cache\\(\\)|CACHE TABLE"
+        use_llm_analysis: true
+        llm_prompt: "Check if this code could benefit from caching"
+        
+
+# Governance Validation Rules
+# This section includes rules focused on compliance, data lineage, and maintainability
+governance_validation:
+  enabled: true
+  rules:
+    unity_catalog_usage:
+      enabled: true
+      description: "Use Unity Catalog for tables and views"
+      severity: "error"
+      parameters:
+        require_three_level_namespace: true  # catalog.schema.table
+        disallowed_metastores: ["hive_metastore", "dbfs"]
+        regex_pattern: "\\b(hive_metastore|dbfs)\\b"
+
+    documentation_and_comments:
+      enabled: true
+      description: "Code cells should have sufficient comments and documentation"
+      severity: "warning"
+      parameters:
+        min_comment_ratio: 0.1  # 10% of lines should be comments (simplified)
+        require_data_lineage_comments: false
+        use_llm_analysis: false  # Simplified to basic regex check
+        check_patterns: ["#", "//", "/*", '"""']  # Look for common comment patterns
+
+    version_control_integration:
+      enabled: false  # Disabled - not applicable to most production workflows
+      description: "Notebooks should integrate with version control"
+      severity: "warning"
+      parameters:
+        require_git_references: true
+        regex_pattern: "%run.*repos|dbutils\\.notebook\\.run.*repos"
+        disallow_hard_coded_versions: true
+
+    data_isolation:
+      enabled: false  # Disabled - too prescriptive, Unity Catalog provides better isolation
+      description: "Separate development, staging, and production data paths"
+      severity: "warning"
+      parameters:
+        disallow_mixed_environments: true
+        required_path_prefixes: ["dev/", "staging/", "prod/"]
+        regex_pattern: "/(?!dev|staging|prod)[^/]+"
+
+    metadata_tagging:
+      enabled: true
+      description: "Tables and datasets should have required metadata tags for governance"
+      severity: "warning"
+      parameters:
+        required_tags: ["owner"]  # Simplified - organization can customize
+        check_tblproperties: true
+        check_comments_fallback: true
+        suggested_tags: ["classification", "purpose", "business_owner"]  # Optional tags
+
+# Security Validation Rules
+# This section includes rules focused on preventing vulnerabilities and ensuring secure practices
+security_validation:
+  enabled: true
+  rules:
+    no_hard_coded_secrets:
+      enabled: true
+      description: "Avoid hard-coding secrets like tokens or passwords"
+      severity: "error"
+      parameters:
+        regex_patterns: ["Bearer\\s+\\w+", "dapi\\w+", "password\\s*=\\s*['\"][^'\"]+['\"]"]
+        suggested_alternative: "dbutils.secrets.get()"
+        use_llm_analysis: true
+        llm_prompt: "Scan for potential hard-coded secrets in this code"
+
+    access_controls:
+      enabled: true
+      description: "Enforce proper access controls using GRANT/REVOKE or Unity Catalog"
+      severity: "error"
+      parameters:
+        require_explicit_grants: true
+        regex_pattern: "GRANT|REVOKE|USE CATALOG"
+        disallow_broad_permissions: true  # e.g., GRANT ALL
+
+    sql_injection_risks:
+      enabled: true
+      description: "Prevent SQL injection by parameterizing queries"
+      severity: "error"
+      parameters:
+        check_dynamic_sql: true
+        regex_pattern: "f['\"]|\\.format\\("  # Flags for string interpolation
+        use_llm_analysis: true
+        llm_prompt: "Is this SQL vulnerable to injection? Suggest fixes"
+
+
+
+# Custom Rules (User-defined)
+custom_validation:
+  enabled: true
+  rules:
+    # Example custom rule
+    company_specific_naming:
+      enabled: false
+      description: "Company-specific naming conventions"
+      severity: "warning"
+      type: "regex"
+      parameters:
+        patterns:
+          table_names: "^(prod|dev|test)_.*"
+          column_names: "^[A-Z][a-zA-Z0-9]*$"
+          
+    security_compliance:
+      enabled: false
+      description: "Security and compliance checks"
+      severity: "error"
+      type: "custom"
+      parameters:
+        check_pii_exposure: true
+        require_encryption_keywords: ["ENCRYPTED", "MASKED"]
+        disallowed_functions: ["SHOW TABLES", "DESCRIBE"]
+
+# Output Configuration
+output:
+  formats: ["json", "html", "csv"]
+  include_passed: true
+  include_failed: true
+  include_pending: true
+  group_by: ["severity", "category"]
+  sort_by: "severity"
+  
+# Reporting
+reporting:
+  generate_summary: true
+  include_recommendations: true
+  export_to_delta: true
+  send_notifications: false
+  notification_config:
+    email:
+      enabled: false
+      recipients: ["team@company.com"]
+      on_failure_only: true
+    
