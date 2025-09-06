@@ -25,43 +25,52 @@ from .utils.spark_utils import get_or_create_spark_session
 
 def is_notebook_environment():
     """Check if we're running in a Databricks notebook environment."""
+    
+    # Primary check: Look for Databricks environment variables
+    databricks_env_vars = [
+        'DATABRICKS_RUNTIME_VERSION',
+        'DATABRICKS_CLUSTER_ID', 
+        'DB_CLUSTER_ID',
+        'SPARK_LOCAL_IP'
+    ]
+    
+    has_databricks_env = any(os.environ.get(var) for var in databricks_env_vars)
+    
+    # If we have Databricks env vars, we're definitely in a Databricks environment
+    if has_databricks_env:
+        if os.environ.get('DEBUG_AUTH'):
+            print(f"DEBUG DETECTION: Found Databricks env vars: {[var for var in databricks_env_vars if os.environ.get(var)]}")
+        return True
+    
+    # Secondary checks for other indicators
     try:
-        # Multiple checks for Databricks notebook environment
-        
-        # Check 1: IPython detection
+        # Check for IPython (notebook/interactive environment)
         import IPython
         ip = IPython.get_ipython()
-        if ip is None:
-            return False
-            
-        # Check 2: Environment variables that indicate Databricks
-        databricks_env_vars = [
-            'DATABRICKS_RUNTIME_VERSION',
-            'DATABRICKS_CLUSTER_ID', 
-            'DB_CLUSTER_ID',
-            'SPARK_LOCAL_IP'
-        ]
+        has_ipython = ip is not None
         
-        has_databricks_env = any(os.environ.get(var) for var in databricks_env_vars)
-        
-        # Check 3: Running via shell command (!) from notebook
-        import sys
-        called_via_shell = any('ipykernel' in str(frame) for frame in sys._getframe().f_back for _ in [1] if frame)
-        
-        # Check 4: Spark context available (common in Databricks)
+        # Check for Spark context
         try:
             from pyspark import SparkContext
             spark_available = SparkContext._active_spark_context is not None
         except:
             spark_available = False
-            
-        # If any strong indicator is present, we're likely in a notebook
-        return has_databricks_env or spark_available or (ip is not None and hasattr(ip, 'kernel'))
+        
+        result = has_ipython or spark_available
+        
+        if os.environ.get('DEBUG_AUTH'):
+            print(f"DEBUG DETECTION: has_databricks_env={has_databricks_env}, has_ipython={has_ipython}, spark_available={spark_available}")
+            print(f"DEBUG DETECTION: final result={result}")
+        
+        return result
         
     except ImportError:
+        if os.environ.get('DEBUG_AUTH'):
+            print("DEBUG DETECTION: IPython not available, assuming not notebook")
         return False
-    except Exception:
-        # If we can't determine, assume we might be in a notebook to be safe
+    except Exception as e:
+        if os.environ.get('DEBUG_AUTH'):
+            print(f"DEBUG DETECTION: Exception occurred: {e}, assuming notebook=True")
         return True
 
 
