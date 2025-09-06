@@ -71,9 +71,10 @@ class SecurityValidator(BaseValidator):
         if not results:
             try:
                 llm_prompt = self.config_manager.get_rule_parameters("security_validation", "no_hard_coded_secrets").get(
-                    "llm_prompt", "Scan for potential hard-coded secrets in this code"
+                    "llm_prompt", "Scan for potential hard-coded secrets in this code. Return 'True' if secure, 'False' if secrets found, with explanation."
                 )
-                is_secure, details = self.llm_service.call_llm(all_code, llm_prompt)
+                llm_response = self.llm_service.call_llm(all_code, llm_prompt)
+                details = llm_response["choices"][0]["message"]["content"]
                 match = re.search(r'(True|False)\s*\((.*)\)', details.strip())
                 if match and match.group(1).lower() == "true":
                     results.append(self.create_passed_result(

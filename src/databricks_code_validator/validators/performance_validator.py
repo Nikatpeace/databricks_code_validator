@@ -97,9 +97,10 @@ class PerformanceValidator(BaseValidator):
         else:
             try:
                 llm_prompt = self.config_manager.get_rule_parameters("performance_validation", "partitioning_and_clustering").get(
-                    "llm_prompt", "Suggest optimal partitioning/clustering columns based on schema"
+                    "llm_prompt", "Suggest optimal partitioning/clustering columns based on schema. Return 'True' if optimized, 'False' if not, with explanation."
                 )
-                is_optimized, details = self.llm_service.call_llm(all_code, llm_prompt)
+                llm_response = self.llm_service.call_llm(all_code, llm_prompt)
+                details = llm_response["choices"][0]["message"]["content"]
                 match = re.search(r'(True|False)\s*\((.*)\)', details.strip())
                 if match and match.group(1).lower() == "true":
                     results.append(self.create_passed_result(
@@ -187,9 +188,10 @@ class PerformanceValidator(BaseValidator):
         else:
             try:
                 llm_prompt = self.config_manager.get_rule_parameters("performance_validation", "cache_usage").get(
-                    "llm_prompt", "Check if this code could benefit from caching"
+                    "llm_prompt", "Check if this code could benefit from caching. Return 'True' if caching is appropriate, 'False' if not needed, with explanation."
                 )
-                is_cached, details = self.llm_service.call_llm(all_code, llm_prompt)
+                llm_response = self.llm_service.call_llm(all_code, llm_prompt)
+                details = llm_response["choices"][0]["message"]["content"]
                 match = re.search(r'(True|False)\s*\((.*)\)', details.strip())
                 if match and match.group(1).lower() == "true":
                     return self.create_passed_result(
