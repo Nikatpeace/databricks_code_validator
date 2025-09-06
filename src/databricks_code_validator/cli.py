@@ -23,6 +23,33 @@ from .utils.logging_utils import setup_logging
 from .utils.spark_utils import get_or_create_spark_session
 
 
+def create_workspace_client(args):
+    """Create a WorkspaceClient with proper authentication handling."""
+    try:
+        # Try explicit authentication first
+        if args.databricks_host and args.databricks_token:
+            return WorkspaceClient(host=args.databricks_host, token=args.databricks_token)
+        
+        # Try environment variables
+        if os.environ.get('DATABRICKS_HOST') and os.environ.get('DATABRICKS_TOKEN'):
+            return WorkspaceClient(
+                host=os.environ.get('DATABRICKS_HOST'),
+                token=os.environ.get('DATABRICKS_TOKEN')
+            )
+        
+        # Try default authentication (runtime, env vars, etc.)
+        return WorkspaceClient()
+        
+    except Exception as e:
+        print(f"Error creating Databricks workspace client: {e}")
+        print("\nAuthentication options:")
+        print("1. Use CLI arguments: --databricks-host <url> --databricks-token <token>")
+        print("2. Set environment variables: DATABRICKS_HOST and DATABRICKS_TOKEN")
+        print("3. Use Databricks CLI configuration: databricks configure --token")
+        print("4. For notebook environments, ensure you're running in the same workspace")
+        sys.exit(1)
+
+
 def create_config_command(args):
     """Create a new configuration file."""
     config_manager = YamlConfigManager()
@@ -73,16 +100,18 @@ def validate_command(args):
         print("Set the required environment variables or use --help for examples")
         sys.exit(1)
     
+    # Initialize WorkspaceClient with proper authentication
+    print("Initializing Databricks workspace client...")
+    w = create_workspace_client(args)
+    
     # Initialize the bot
     print("Initializing Databricks Code Validator...")
     bot = DatabricksCodeValidator(
         llm_endpoint_url=llm_config.endpoint_url,
         llm_token=llm_config.api_key,
+        workspace_client=w,
         config_manager=config_manager
     )
-    
-    # Initialize WorkspaceClient
-    w = WorkspaceClient()
     
     # Determine notebooks to validate
     notebooks = []
@@ -304,6 +333,8 @@ Environment variables:
   LLM_API_KEY          API key for the LLM service
   LLM_ENDPOINT_URL     LLM endpoint URL (provider-specific)
   LLM_MODEL_NAME       Model name to use
+  DATABRICKS_HOST      Databricks workspace URL (for authentication)
+  DATABRICKS_TOKEN     Databricks personal access token (for authentication)
         """
     )
     
@@ -332,6 +363,9 @@ Environment variables:
     validate_parser.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], 
                                 default='INFO', help='Logging level (default: INFO)')
     validate_parser.add_argument('--non-interactive', action='store_true', help='Run without interactive prompts')
+    # Authentication options
+    validate_parser.add_argument('--databricks-host', help='Databricks workspace URL (e.g., https://your-workspace.cloud.databricks.com)')
+    validate_parser.add_argument('--databricks-token', help='Databricks personal access token')
     validate_parser.set_defaults(func=validate_command)
     
     # Examples command

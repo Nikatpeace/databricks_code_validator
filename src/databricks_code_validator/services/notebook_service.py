@@ -22,10 +22,15 @@ class NotebookService:
         Initialize the notebook service.
         
         Args:
-            workspace_client: Optional Databricks workspace client.
-                             If not provided, will create a new one.
+            workspace_client: Databricks workspace client.
+                             Must be provided for proper authentication.
         """
-        self.workspace_client = workspace_client or WorkspaceClient()
+        if workspace_client is None:
+            raise ValueError(
+                "WorkspaceClient is required for NotebookService. "
+                "Please provide a properly authenticated WorkspaceClient instance."
+            )
+        self.workspace_client = workspace_client
     
     def fetch_notebook_content(self, notebook_path: str) -> Dict[str, Any]:
         """
