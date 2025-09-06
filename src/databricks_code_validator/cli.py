@@ -23,30 +23,72 @@ from .utils.logging_utils import setup_logging
 from .utils.spark_utils import get_or_create_spark_session
 
 
+def is_notebook_environment():
+    """Check if we're running in a Databricks notebook environment."""
+    try:
+        # Check for IPython and Databricks-specific indicators
+        import IPython
+        ip = IPython.get_ipython()
+        return (
+            ip is not None and 
+            hasattr(ip, 'kernel') and 
+            ('databricks' in str(type(ip)).lower() or 'spark' in globals())
+        )
+    except ImportError:
+        return False
+
+
 def create_workspace_client(args):
     """Create a WorkspaceClient with proper authentication handling."""
-    try:
-        # Try explicit authentication first
-        if args.databricks_host and args.databricks_token:
+    
+    # Check if we're in a notebook environment
+    in_notebook = is_notebook_environment()
+    
+    # Try explicit authentication first
+    if args.databricks_host and args.databricks_token:
+        try:
             return WorkspaceClient(host=args.databricks_host, token=args.databricks_token)
-        
-        # Try environment variables
-        if os.environ.get('DATABRICKS_HOST') and os.environ.get('DATABRICKS_TOKEN'):
+        except Exception as e:
+            print(f"Error with explicit authentication: {e}")
+            sys.exit(1)
+    
+    # Try environment variables
+    if os.environ.get('DATABRICKS_HOST') and os.environ.get('DATABRICKS_TOKEN'):
+        try:
             return WorkspaceClient(
                 host=os.environ.get('DATABRICKS_HOST'),
                 token=os.environ.get('DATABRICKS_TOKEN')
             )
-        
-        # Try default authentication (runtime, env vars, etc.)
+        except Exception as e:
+            print(f"Error with environment variable authentication: {e}")
+            sys.exit(1)
+    
+    # For notebook environments, avoid default auth that causes IPython issues
+    if in_notebook:
+        print("Error: Running in Databricks notebook environment requires explicit authentication.")
+        print("\nIn Databricks notebooks, you must provide authentication explicitly:")
+        print("Option 1 - Use CLI arguments:")
+        print("  !databricks-code-validator validate \\")
+        print("    --databricks-host 'https://your-workspace.cloud.databricks.com' \\")
+        print("    --databricks-token 'dapi-your-token' \\")
+        print("    --notebook '/path/to/notebook'")
+        print("\nOption 2 - Set environment variables in your notebook:")
+        print("  import os")
+        print("  os.environ['DATABRICKS_HOST'] = 'https://your-workspace.cloud.databricks.com'")
+        print("  os.environ['DATABRICKS_TOKEN'] = 'dapi-your-token'")
+        print("  !databricks-code-validator validate --notebook '/path/to/notebook'")
+        print("\nTo get your token: Databricks Settings -> Developer -> Access Tokens")
+        sys.exit(1)
+    
+    # Try default authentication only outside notebook environments
+    try:
         return WorkspaceClient()
-        
     except Exception as e:
         print(f"Error creating Databricks workspace client: {e}")
         print("\nAuthentication options:")
         print("1. Use CLI arguments: --databricks-host <url> --databricks-token <token>")
         print("2. Set environment variables: DATABRICKS_HOST and DATABRICKS_TOKEN")
         print("3. Use Databricks CLI configuration: databricks configure --token")
-        print("4. For notebook environments, ensure you're running in the same workspace")
         sys.exit(1)
 
 
