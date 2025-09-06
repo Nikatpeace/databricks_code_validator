@@ -26,16 +26,43 @@ from .utils.spark_utils import get_or_create_spark_session
 def is_notebook_environment():
     """Check if we're running in a Databricks notebook environment."""
     try:
-        # Check for IPython and Databricks-specific indicators
+        # Multiple checks for Databricks notebook environment
+        
+        # Check 1: IPython detection
         import IPython
         ip = IPython.get_ipython()
-        return (
-            ip is not None and 
-            hasattr(ip, 'kernel') and 
-            ('databricks' in str(type(ip)).lower() or 'spark' in globals())
-        )
+        if ip is None:
+            return False
+            
+        # Check 2: Environment variables that indicate Databricks
+        databricks_env_vars = [
+            'DATABRICKS_RUNTIME_VERSION',
+            'DATABRICKS_CLUSTER_ID', 
+            'DB_CLUSTER_ID',
+            'SPARK_LOCAL_IP'
+        ]
+        
+        has_databricks_env = any(os.environ.get(var) for var in databricks_env_vars)
+        
+        # Check 3: Running via shell command (!) from notebook
+        import sys
+        called_via_shell = any('ipykernel' in str(frame) for frame in sys._getframe().f_back for _ in [1] if frame)
+        
+        # Check 4: Spark context available (common in Databricks)
+        try:
+            from pyspark import SparkContext
+            spark_available = SparkContext._active_spark_context is not None
+        except:
+            spark_available = False
+            
+        # If any strong indicator is present, we're likely in a notebook
+        return has_databricks_env or spark_available or (ip is not None and hasattr(ip, 'kernel'))
+        
     except ImportError:
         return False
+    except Exception:
+        # If we can't determine, assume we might be in a notebook to be safe
+        return True
 
 
 def create_workspace_client(args):
@@ -43,6 +70,14 @@ def create_workspace_client(args):
     
     # Check if we're in a notebook environment
     in_notebook = is_notebook_environment()
+    
+    # Debug output to help diagnose issues
+    if os.environ.get('DEBUG_AUTH'):
+        print(f"DEBUG: Notebook environment detected: {in_notebook}")
+        print(f"DEBUG: Has IPython: {'IPython' in sys.modules}")
+        print(f"DEBUG: Databricks env vars: {[var for var in ['DATABRICKS_RUNTIME_VERSION', 'DATABRICKS_CLUSTER_ID', 'DB_CLUSTER_ID', 'SPARK_LOCAL_IP'] if os.environ.get(var)]}")
+        print(f"DEBUG: CLI args - host: {bool(getattr(args, 'databricks_host', None))}, token: {bool(getattr(args, 'databricks_token', None))}")
+        print(f"DEBUG: Env vars - host: {bool(os.environ.get('DATABRICKS_HOST'))}, token: {bool(os.environ.get('DATABRICKS_TOKEN'))}")
     
     # Try explicit authentication first
     if args.databricks_host and args.databricks_token:
