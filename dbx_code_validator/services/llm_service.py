@@ -247,7 +247,27 @@ class LLMService:
         try:
             result = self.call_llm(code, prompt)
             content = result["choices"][0]["message"]["content"]
-            is_secure = "True" in content
+
+            # More robust parsing - look for various indicators that code is secure
+            content_lower = content.lower()
+            secure_indicators = [
+                "true" in content_lower and "secure" in content_lower,
+                "sql injection analysis: true" in content_lower,
+                "secure from sql injection" in content_lower,
+                "no sql injection" in content_lower and "secure" in content_lower,
+                "safe" in content_lower and ("sql" in content_lower or "injection" in content_lower)
+            ]
+
+            # Check for vulnerability indicators
+            vulnerability_indicators = [
+                "false" in content_lower and ("sql injection" in content_lower or "vulnerable" in content_lower),
+                "sql injection risk" in content_lower and "found" in content_lower,
+                "vulnerable to sql injection" in content_lower
+            ]
+
+            # Default to secure if we find secure indicators and no vulnerability indicators
+            is_secure = any(secure_indicators) and not any(vulnerability_indicators)
+
             return is_secure, content
         except Exception as e:
             logger.error(f"Failed to check SQL injection: {e}")
