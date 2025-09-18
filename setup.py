@@ -37,12 +37,12 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "databricks-code-validator=databricks_code_validator.cli:main",
+            "databricks-code-validator=dbx_code_validator.cli:main",
         ],
     },
     include_package_data=True,
     package_data={
-        "databricks_code_validator": ["config/*.yaml"],
+        "dbx_code_validator": ["config/*.yaml"],
     },
     keywords="databricks, code-quality, ai, validation, standards, notebooks",
 )

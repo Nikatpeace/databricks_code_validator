@@ -56,7 +56,7 @@ databricks-code-validator create-config --output validation_rules.yaml
 dbutils.library.restartPython()
 
 # Import and use
-from databricks_code_validator.main import DatabricksCodeValidator
+from dbx_code_validator.main import DatabricksCodeValidator
 ```
 
 #### Alternative Databricks Installation (if pip install -e fails)
@@ -66,7 +66,7 @@ import sys
 sys.path.insert(0, '/Workspace/Users/your.name@company.com/databricks_code_validator/src')
 
 # Import and use
-from databricks_code_validator.main import DatabricksCodeValidator
+from dbx_code_validator.main import DatabricksCodeValidator
 ```
 
 ### Validation Commands
@@ -130,7 +130,7 @@ Configuration is managed through `validation_rules.yaml` with categories:
 - CI/CD pipeline integration support
 
 ## Entry Points
-- Main CLI: `databricks_code_validator.cli:main`
+- Main CLI: `dbx_code_validator.cli:main`
 - Console script: `databricks-code-validator`
 
 ## Development Notes

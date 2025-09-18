@@ -37,14 +37,14 @@ dependencies = [
 keywords = ["databricks", "code-quality", "ai", "validation", "standards", "notebooks"]
 
 [project.scripts]
-databricks-code-validator = "databricks_code_validator.cli:main"
+databricks-code-validator = "dbx_code_validator.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["databricks_code_validator*"]
+include = ["dbx_code_validator*"]
 
 [tool.setuptools.package-dir]
 "" = "src"
 
 [tool.setuptools.package-data]
-databricks_code_validator = ["config/*.yaml"]
+dbx_code_validator = ["config/*.yaml"]
