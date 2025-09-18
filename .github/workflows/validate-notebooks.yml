@@ -1,0 +1,48 @@
+name: Validate Notebooks on PR
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.ipynb'
+      - '**.py'
+      - '**.sql'
+      - 'config/validation_rules.yaml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to compare changes
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install requests databricks-sdk PyYAML
+
+      - name: Extract changed notebooks
+        id: notebooks
+        run: |
+          python .github/scripts/extract_changed_notebooks.py
+
+      - name: Validate notebooks via Databricks
+        run: |
+          python .github/scripts/validate_via_databricks.py
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          LLM_PROVIDER_TYPE: ${{ secrets.LLM_PROVIDER_TYPE }}
+          LLM_ENDPOINT_URL: ${{ secrets.LLM_ENDPOINT_URL }}
+          LLM_MODEL_NAME: ${{ secrets.LLM_MODEL_NAME }}
+          PR_NUMBER: ${{ github.event.number }}
+          PR_BRANCH: ${{ github.head_ref }}
+          GITHUB_SHA: ${{ github.sha }}
+          VALIDATION_CONFIG_PATH: /Workspace/Repos/${{ github.repository }}/config/validation_rules.yaml
