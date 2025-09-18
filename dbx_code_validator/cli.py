@@ -424,6 +424,12 @@ def main(**kwargs):
         for arg in original_args:
             if arg.startswith('--command='):
                 command = arg.split('=', 1)[1]
+            elif arg.startswith('--DATABRICKS_HOST='):
+                # Handle environment variables passed as arguments
+                os.environ['DATABRICKS_HOST'] = arg.split('=', 1)[1]
+            elif arg.startswith('--DATABRICKS_TOKEN='):
+                # Handle environment variables passed as arguments
+                os.environ['DATABRICKS_TOKEN'] = arg.split('=', 1)[1]
             else:
                 filtered_args.append(arg)
 
