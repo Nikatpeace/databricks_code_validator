@@ -65,9 +65,9 @@ Step 3: Create the Validation Job
 
 Type: Python wheel
 
-Package name: your wheel’s name (from pyproject.toml/setup.py)
+Package name: databricks-code-validator (from pyproject.toml)
 
-Entry point: the key defined in your entry_points (e.g., validator if validator = databricks_code_validator.cli:main). 
+Entry point: databricks-code-validator (the console script name) 
 Databricks Documentation
 
 3.2 Compute
@@ -84,12 +84,12 @@ Use keyword args (Job UI → Parameters):
 
 Key	Value	Description
 command	validate	CLI subcommand
-notebooks	/Users/john.doe@company.com/analytics /Users/jane.smith@company.com/ml_models	Space-separated workspace notebook paths
+notebook	/Users/john.doe@company.com/analytics/my_notebook	Single notebook path (use 'notebook' not 'notebooks' for job parameters)
 output	/Volumes/<cat>/<schema>/<vol>/validator/results.json	Persisted run artifact in UC Volume
-save-to-table	main.governance.validation_results	UC Delta table for results
+save_to_table	main.governance.validation_results	UC Delta table for results (use underscore for job parameters)
 config	/Repos/your-repo/databricks_code_validator/config/validation_rules.yaml	Config in Repos/Workspace Files
-log-level	INFO	Logging level
-non-interactive	true	CI mode
+log_level	INFO	Logging level (use underscore for job parameters)
+non_interactive	true	CI mode (use underscore for job parameters)
 
 Paths: use absolute workspace paths for notebooks (e.g., /Users/...). For Repos, both /Repos/... and /Workspace/Repos/... resolve to the same folder. 
 

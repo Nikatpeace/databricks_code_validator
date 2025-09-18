@@ -395,8 +395,34 @@ def show_examples_command(args):
         print("Available example types: llm, config")
 
 
-def main():
-    """Main CLI entry point."""
+def main(**kwargs):
+    """Main CLI entry point.
+
+    Args:
+        **kwargs: Optional keyword arguments from Databricks job parameters
+    """
+    # If called with kwargs (from Databricks job), convert to sys.argv format
+    if kwargs:
+        # Convert job parameters to command line arguments
+        sys.argv = ['databricks-code-validator']
+
+        # Add command (required)
+        command = kwargs.get('command', 'validate')
+        sys.argv.append(command)
+
+        # Convert other parameters to CLI format
+        for key, value in kwargs.items():
+            if key == 'command':
+                continue  # Already added
+
+            # Convert underscores to dashes for CLI compatibility
+            cli_key = key.replace('_', '-')
+
+            if isinstance(value, bool) and value:
+                sys.argv.append(f'--{cli_key}')
+            elif value is not None and value != '':
+                sys.argv.extend([f'--{cli_key}', str(value)])
+
     parser = argparse.ArgumentParser(
         description="Databricks Code Validator - AI-powered validation of Databricks notebooks against code standards and best practices",
         formatter_class=argparse.RawDescriptionHelpFormatter,
