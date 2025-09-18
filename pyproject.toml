@@ -1,3 +1,50 @@
 [build-system]
 requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "databricks-code-validator"
+version = "1.0.0"
+description = "AI-powered validation tool for Databricks notebooks against code standards and best practices"
+authors = [{name = "Nikhil Chandna", email = "nikhil.chandna@databricks.com"}]
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "requests>=2.28.0",
+    "python-dateutil>=2.8.2",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "pytest>=7.0.0",
+    "pytest-mock>=3.10.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "PyYAML>=6.0.0",
+    "databricks-sdk>=0.17.0",
+]
+keywords = ["databricks", "code-quality", "ai", "validation", "standards", "notebooks"]
+
+[project.scripts]
+databricks-code-validator = "databricks_code_validator.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["databricks_code_validator*"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.package-data]
+databricks_code_validator = ["config/*.yaml"]

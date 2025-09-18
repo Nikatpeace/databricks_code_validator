@@ -34,15 +34,39 @@ databricks_code_validator/
 #Please don't include any references to claude code when you push changes to git. ALso, Claude code's name should not show up as contributors on git
 
 ### Installation & Setup
+
+#### Local Development
 ```bash
 # Install in development mode
 pip install -e .
 
-# Install dependencies
+# Or install dependencies first, then package
 pip install -r requirements.txt
+pip install -e .
 
 # Create default configuration
 databricks-code-validator create-config --output validation_rules.yaml
+```
+
+#### Databricks Environment
+```bash
+# Install dependencies and package
+%pip install -r /Workspace/Users/your.name@company.com/databricks_code_validator/requirements.txt
+%pip install -e /Workspace/Users/your.name@company.com/databricks_code_validator/
+dbutils.library.restartPython()
+
+# Import and use
+from databricks_code_validator.main import DatabricksCodeValidator
+```
+
+#### Alternative Databricks Installation (if pip install -e fails)
+```python
+# Add source directory to Python path
+import sys
+sys.path.insert(0, '/Workspace/Users/your.name@company.com/databricks_code_validator/src')
+
+# Import and use
+from databricks_code_validator.main import DatabricksCodeValidator
 ```
 
 ### Validation Commands
