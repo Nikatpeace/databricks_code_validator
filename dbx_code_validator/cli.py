@@ -178,6 +178,16 @@ def validate_command(args):
         print("Create a configuration file using: databricks-code-validator create-config")
         sys.exit(1)
     
+    # Set LLM environment variables from CLI arguments (for Databricks jobs)
+    if args.llm_provider_type:
+        os.environ['LLM_PROVIDER_TYPE'] = args.llm_provider_type
+    if args.llm_api_key:
+        os.environ['LLM_API_KEY'] = args.llm_api_key
+    if args.llm_endpoint_url:
+        os.environ['LLM_ENDPOINT_URL'] = args.llm_endpoint_url
+    if args.llm_model_name:
+        os.environ['LLM_MODEL_NAME'] = args.llm_model_name
+
     # Get LLM provider configuration
     try:
         llm_config = get_llm_provider()
@@ -472,6 +482,13 @@ Environment variables:
     validate_parser.add_argument('--log-level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], 
                                 default='INFO', help='Logging level (default: INFO)')
     validate_parser.add_argument('--non-interactive', action='store_true', help='Run without interactive prompts')
+
+    # LLM configuration options (for Databricks jobs)
+    validate_parser.add_argument('--llm-provider-type', help='LLM provider type (openai, azure_openai, anthropic, databricks)')
+    validate_parser.add_argument('--llm-api-key', help='LLM API key')
+    validate_parser.add_argument('--llm-endpoint-url', help='LLM endpoint URL')
+    validate_parser.add_argument('--llm-model-name', help='LLM model name')
+
     # Authentication options
     validate_parser.add_argument('--databricks-host', help='Databricks workspace URL (e.g., https://your-workspace.cloud.databricks.com)')
     validate_parser.add_argument('--databricks-token', help='Databricks personal access token')
