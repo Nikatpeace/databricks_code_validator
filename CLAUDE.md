@@ -6,7 +6,7 @@ This is a Databricks Code Validator - an AI-powered validation tool for Databric
 ## Project Structure
 ```
 databricks_code_validator/
-├── src/databricks_code_validator/     # Main package source code
+├── dbx_code_validator/               # Main package source code
 │   ├── cli.py                        # Command-line interface
 │   ├── config/                       # Configuration modules
 │   │   ├── yaml_config.py           # YAML configuration handling
@@ -61,9 +61,9 @@ from dbx_code_validator.main import DatabricksCodeValidator
 
 #### Alternative Databricks Installation (if pip install -e fails)
 ```python
-# Add source directory to Python path
+# Add repository directory to Python path
 import sys
-sys.path.insert(0, '/Workspace/Users/your.name@company.com/databricks_code_validator/src')
+sys.path.insert(0, '/Workspace/Users/your.name@company.com/databricks_code_validator')
 
 # Import and use
 from dbx_code_validator.main import DatabricksCodeValidator

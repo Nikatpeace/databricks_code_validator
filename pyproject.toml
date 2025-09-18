@@ -40,11 +40,7 @@ keywords = ["databricks", "code-quality", "ai", "validation", "standards", "note
 databricks-code-validator = "dbx_code_validator.cli:main"
 
 [tool.setuptools.packages.find]
-where = ["src"]
 include = ["dbx_code_validator*"]
-
-[tool.setuptools.package-dir]
-"" = "src"
 
 [tool.setuptools.package-data]
 dbx_code_validator = ["config/*.yaml"]
