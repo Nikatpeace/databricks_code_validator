@@ -3,11 +3,13 @@
 import base64
 import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
 
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.workspace import ExportFormat
-from pyspark.sql import DataFrame
+
+if TYPE_CHECKING:
+    from pyspark.sql import DataFrame
 
 from ..models.notebook_metadata import NotebookMetadata
 from ..utils.logging_utils import get_logger
@@ -155,7 +157,7 @@ class NotebookService:
         except Exception:
             return False
     
-    def save_validation_results(self, df: DataFrame, table_name: str, mode: str = "overwrite") -> None:
+    def save_validation_results(self, df: "DataFrame", table_name: str, mode: str = "overwrite") -> None:
         """
         Save validation results to a Delta table.
         
