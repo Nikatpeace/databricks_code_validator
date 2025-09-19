@@ -97,12 +97,30 @@ def create_workspace_client(args):
         token = args.databricks_token.strip()
         if token.startswith('{{secrets/') and token.endswith('}}'):
             print(f"Detected unresolved secret syntax: {token}")
-            print("Databricks did not resolve the secret in task parameters.")
-            print("For Python wheel tasks, use environment variables instead of task parameters for secrets.")
-            print("Set these as Environment Variables in your job configuration:")
-            print(f"  DATABRICKS_HOST={args.databricks_host}")
-            print(f"  DATABRICKS_TOKEN={token}")
-            sys.exit(1)
+            print("Resolving secret using Databricks SDK...")
+
+            # Parse the secret reference: {{secrets/scope/key}}
+            secret_ref = token[2:-2]  # Remove {{ and }}
+            parts = secret_ref.split('/')
+            if len(parts) == 3 and parts[0] == 'secrets':
+                scope = parts[1]
+                key = parts[2]
+
+                try:
+                    # Create a temporary client using default authentication to resolve the secret
+                    temp_client = WorkspaceClient()
+                    secret_value = temp_client.secrets.get_secret(scope=scope, key=key)
+                    token = secret_value.value
+                    print(f"Successfully resolved secret from scope '{scope}', key '{key}'")
+                    print(f"Resolved token starts with 'dapi': {token.startswith('dapi')}")
+                except Exception as e:
+                    print(f"Failed to resolve secret: {e}")
+                    print("Make sure the job has permissions to read the secret scope.")
+                    sys.exit(1)
+            else:
+                print(f"Invalid secret syntax: {token}")
+                print("Expected format: {{secrets/scope/key}}")
+                sys.exit(1)
 
         print(f"Token starts with 'dapi': {token.startswith('dapi')}")
 
@@ -219,7 +237,25 @@ def validate_command(args):
     if args.llm_provider_type:
         os.environ['LLM_PROVIDER_TYPE'] = args.llm_provider_type
     if args.llm_api_key:
-        os.environ['LLM_API_KEY'] = args.llm_api_key
+        # Handle secret resolution for LLM API key
+        api_key = args.llm_api_key.strip()
+        if api_key.startswith('{{secrets/') and api_key.endswith('}}'):
+            print(f"Resolving LLM API key secret: {api_key}")
+            secret_ref = api_key[2:-2]  # Remove {{ and }}
+            parts = secret_ref.split('/')
+            if len(parts) == 3 and parts[0] == 'secrets':
+                scope = parts[1]
+                key = parts[2]
+                try:
+                    # Use the same workspace client that was created for authentication
+                    temp_client = WorkspaceClient()
+                    secret_value = temp_client.secrets.get_secret(scope=scope, key=key)
+                    api_key = secret_value.value
+                    print(f"Successfully resolved LLM API key from scope '{scope}', key '{key}'")
+                except Exception as e:
+                    print(f"Failed to resolve LLM API key secret: {e}")
+                    sys.exit(1)
+        os.environ['LLM_API_KEY'] = api_key
     if args.llm_endpoint_url:
         os.environ['LLM_ENDPOINT_URL'] = args.llm_endpoint_url
     if args.llm_model_name:
