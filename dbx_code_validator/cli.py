@@ -90,10 +90,14 @@ def create_workspace_client(args):
     
     # Try explicit authentication first
     if args.databricks_host and args.databricks_token:
+        print(f"Using explicit authentication: host={args.databricks_host}, token={'***' if args.databricks_token else 'None'}")
         try:
             return WorkspaceClient(host=args.databricks_host, token=args.databricks_token)
         except Exception as e:
             print(f"Error with explicit authentication: {e}")
+            print(f"Host: {args.databricks_host}")
+            print(f"Token length: {len(args.databricks_token) if args.databricks_token else 0}")
+            print(f"Token starts with 'dapi': {args.databricks_token.startswith('dapi') if args.databricks_token else False}")
             sys.exit(1)
     
     # Try environment variables
