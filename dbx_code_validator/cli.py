@@ -92,14 +92,26 @@ def create_workspace_client(args):
     if args.databricks_host and args.databricks_token:
         print(f"Using explicit authentication: host={args.databricks_host}, token={'***' if args.databricks_token else 'None'}")
         print(f"Token length: {len(args.databricks_token) if args.databricks_token else 0}")
-        print(f"Token starts with 'dapi': {args.databricks_token.startswith('dapi') if args.databricks_token else False}")
+
+        # Handle secret resolution manually since Databricks doesn't resolve {{secrets/...}} in task parameters
+        token = args.databricks_token.strip()
+        if token.startswith('{{secrets/') and token.endswith('}}'):
+            print(f"Detected unresolved secret syntax: {token}")
+            print("Databricks did not resolve the secret in task parameters.")
+            print("For Python wheel tasks, use environment variables instead of task parameters for secrets.")
+            print("Set these as Environment Variables in your job configuration:")
+            print(f"  DATABRICKS_HOST={args.databricks_host}")
+            print(f"  DATABRICKS_TOKEN={token}")
+            sys.exit(1)
+
+        print(f"Token starts with 'dapi': {token.startswith('dapi')}")
 
         try:
             # Use Config object for explicit configuration
             from databricks.sdk.core import Config
             config = Config(
                 host=args.databricks_host.strip(),
-                token=args.databricks_token.strip()
+                token=token
             )
             client = WorkspaceClient(config=config)
 
