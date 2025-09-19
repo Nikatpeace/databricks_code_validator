@@ -91,13 +91,34 @@ def create_workspace_client(args):
     # Try explicit authentication first
     if args.databricks_host and args.databricks_token:
         print(f"Using explicit authentication: host={args.databricks_host}, token={'***' if args.databricks_token else 'None'}")
+        print(f"Token length: {len(args.databricks_token) if args.databricks_token else 0}")
+        print(f"Token starts with 'dapi': {args.databricks_token.startswith('dapi') if args.databricks_token else False}")
+
         try:
-            return WorkspaceClient(host=args.databricks_host, token=args.databricks_token)
+            # Use Config object for explicit configuration
+            from databricks.sdk.core import Config
+            config = Config(
+                host=args.databricks_host.strip(),
+                token=args.databricks_token.strip()
+            )
+            client = WorkspaceClient(config=config)
+
+            # Test the connection immediately
+            print("Testing workspace connection...")
+            try:
+                user_info = client.current_user.me()
+                print(f"Successfully authenticated as: {user_info.user_name}")
+                return client
+            except Exception as api_error:
+                print(f"Authentication succeeded but API call failed: {api_error}")
+                print(f"This suggests a permissions issue with the token")
+                # Return the client anyway, let the calling code handle the API error
+                return client
+
         except Exception as e:
-            print(f"Error with explicit authentication: {e}")
-            print(f"Host: {args.databricks_host}")
-            print(f"Token length: {len(args.databricks_token) if args.databricks_token else 0}")
-            print(f"Token starts with 'dapi': {args.databricks_token.startswith('dapi') if args.databricks_token else False}")
+            print(f"Error creating WorkspaceClient: {e}")
+            print(f"Host: '{args.databricks_host}'")
+            print(f"Token prefix: '{args.databricks_token[:10] if args.databricks_token else 'None'}...'")
             sys.exit(1)
     
     # Try environment variables
