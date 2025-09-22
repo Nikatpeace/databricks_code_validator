@@ -97,7 +97,6 @@ def create_workspace_client(args):
         token = args.databricks_token.strip()
         if token.startswith('{{secrets/') and token.endswith('}}'):
             print(f"Detected unresolved secret syntax: {token}")
-            print("Resolving secret using Databricks SDK...")
 
             # Parse the secret reference: {{secrets/scope/key}}
             secret_ref = token[2:-2]  # Remove {{ and }}
@@ -107,15 +106,37 @@ def create_workspace_client(args):
                 key = parts[2]
 
                 try:
-                    # Create a temporary client using default authentication to resolve the secret
-                    temp_client = WorkspaceClient()
-                    secret_value = temp_client.secrets.get_secret(scope=scope, key=key)
-                    token = secret_value.value
-                    print(f"Successfully resolved secret from scope '{scope}', key '{key}'")
-                    print(f"Resolved token starts with 'dapi': {token.startswith('dapi')}")
+                    # Try dbutils first (works in both notebook and job environments)
+                    print("Attempting to resolve secret using dbutils...")
+                    try:
+                        from pyspark.dbutils import DBUtils
+                        from pyspark.sql import SparkSession
+
+                        # Try to get active session first, fall back to creating one
+                        spark = SparkSession.getActiveSession()
+                        if not spark:
+                            print("No active Spark session, attempting to create one...")
+                            try:
+                                spark = SparkSession.builder.appName("SecretResolution").getOrCreate()
+                            except Exception as spark_error:
+                                print(f"Failed to create Spark session: {spark_error}")
+                                raise ImportError("Could not get Spark session")
+
+                        dbutils = DBUtils(spark)
+                        token = dbutils.secrets.get(scope=scope, key=key)
+                        print(f"Successfully resolved secret from scope '{scope}', key '{key}' using dbutils")
+                        print(f"Resolved token starts with 'dapi': {token.startswith('dapi')}")
+                    except (ImportError, Exception) as e:
+                        print(f"dbutils approach failed ({e}), falling back to WorkspaceClient...")
+                        # Fall back to WorkspaceClient approach
+                        temp_client = WorkspaceClient()
+                        secret_value = temp_client.secrets.get_secret(scope=scope, key=key)
+                        token = secret_value.value
+                        print(f"Successfully resolved secret from scope '{scope}', key '{key}' using WorkspaceClient")
+                        print(f"Resolved token starts with 'dapi': {token.startswith('dapi')}")
                 except Exception as e:
                     print(f"Failed to resolve secret: {e}")
-                    print("Make sure the job has permissions to read the secret scope.")
+                    print("Make sure the job/notebook has permissions to read the secret scope.")
                     sys.exit(1)
             else:
                 print(f"Invalid secret syntax: {token}")
@@ -247,11 +268,32 @@ def validate_command(args):
                 scope = parts[1]
                 key = parts[2]
                 try:
-                    # Use the same workspace client that was created for authentication
-                    temp_client = WorkspaceClient()
-                    secret_value = temp_client.secrets.get_secret(scope=scope, key=key)
-                    api_key = secret_value.value
-                    print(f"Successfully resolved LLM API key from scope '{scope}', key '{key}'")
+                    # Try dbutils first (works in both notebook and job environments)
+                    print("Attempting to resolve LLM API key using dbutils...")
+                    try:
+                        from pyspark.dbutils import DBUtils
+                        from pyspark.sql import SparkSession
+
+                        # Try to get active session first, fall back to creating one
+                        spark = SparkSession.getActiveSession()
+                        if not spark:
+                            print("No active Spark session, attempting to create one...")
+                            try:
+                                spark = SparkSession.builder.appName("SecretResolution").getOrCreate()
+                            except Exception as spark_error:
+                                print(f"Failed to create Spark session: {spark_error}")
+                                raise ImportError("Could not get Spark session")
+
+                        dbutils = DBUtils(spark)
+                        api_key = dbutils.secrets.get(scope=scope, key=key)
+                        print(f"Successfully resolved LLM API key from scope '{scope}', key '{key}' using dbutils")
+                    except (ImportError, Exception) as e:
+                        print(f"dbutils approach failed ({e}), falling back to WorkspaceClient...")
+                        # Fall back to WorkspaceClient approach
+                        temp_client = WorkspaceClient()
+                        secret_value = temp_client.secrets.get_secret(scope=scope, key=key)
+                        api_key = secret_value.value
+                        print(f"Successfully resolved LLM API key from scope '{scope}', key '{key}' using WorkspaceClient")
                 except Exception as e:
                     print(f"Failed to resolve LLM API key secret: {e}")
                     sys.exit(1)
